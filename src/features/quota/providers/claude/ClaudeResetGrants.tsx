@@ -18,6 +18,7 @@ import {
 } from './resetGrantOperations';
 import { selectResetGrant } from './selectResetGrant';
 import { readResetGrantsForCard, scheduleResetGrantRead } from './resetGrantReads';
+import { buildClaudeResetGuard } from '../../resetGuard';
 
 /** Card-owned reads; the session-scoped journal owns spending and ambiguous retries. */
 export function useClaudeResetGrants(
@@ -27,7 +28,7 @@ export function useClaudeResetGrants(
   refreshToken: unknown,
   onRefresh: () => void
 ) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const [session] = useState(() => apiClient.getConnectionRevision());
   const sessionActive =
@@ -93,6 +94,14 @@ export function useClaudeResetGrants(
       }),
       confirmText: t(pending ? 'claude_reset.retry' : 'claude_reset.confirm'),
       variant: 'primary',
+      guard: buildClaudeResetGuard({
+        fileName: file.name,
+        status,
+        grant: status?.grants.find((grant) => grant.id === selected),
+        now: Date.now(),
+        t,
+        locale: i18n.resolvedLanguage,
+      }),
       onConfirm: async () => {
         if (!current() || lock.current || useAuthStore.getState().connectionStatus !== 'connected')
           return;

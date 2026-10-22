@@ -2316,5 +2316,30 @@
     "error": "Liên kết thất bại. Hãy bắt đầu lại.",
     "unsupported": "Máy chủ này không hỗ trợ liên kết SIWC.",
     "expired": "Phiên liên kết đã hết hạn. Hãy bắt đầu lại."
+  },
+  "reset_guard": {
+    "step_review": "Bước 1/2 · Kiểm tra tài khoản",
+    "step_confirm": "Bước 2/2 · Xác nhận",
+    "continue": "Tiếp tục",
+    "back": "Quay lại",
+    "fact_account": "Tài khoản",
+    "fact_resets_left": "Lượt reset thủ công còn lại",
+    "resets_left_value": "Hiện có {{before}}, sau lần này còn {{after}}",
+    "fact_next_expiry": "Lượt reset gần nhất hết hạn",
+    "fact_grant": "Nguồn lượt reset",
+    "window_left": "Còn {{left}}%",
+    "window_left_until": "Còn {{left}}% · tự hồi {{when}}",
+    "warnings_title": "Kiểm tra trước khi dùng lượt reset",
+    "warn_low_usage": "Hạn mức này mới dùng {{used}}%, nên reset bây giờ chỉ lấy lại {{used}}%.",
+    "warn_refills_soon": "Hạn mức này sẽ tự hồi {{when}}.",
+    "warn_usage_unknown": "Không đọc được mức dùng hiện tại. Hãy làm mới quota trước.",
+    "warn_not_limited": "Anthropic chỉ chấp nhận lượt reset này khi tài khoản đã chạm hạn mức, và hiện tại chưa chạm.",
+    "final_note": "Thao tác này dùng 1 lượt reset thủ công và không thể hoàn tác.",
+    "type_label": "Nhập {{phrase}} để mở khóa nút",
+    "locked_hint": "Nút sẽ mở khóa sau khi bạn nhập {{phrase}}.",
+    "hold_hint": "Nhấn giữ {{seconds}} giây. Thả ra sớm sẽ hủy.",
+    "holding": "Tiếp tục giữ…",
+    "working": "Đang reset…",
+    "hold_button": "Giữ để reset"
   }
 }

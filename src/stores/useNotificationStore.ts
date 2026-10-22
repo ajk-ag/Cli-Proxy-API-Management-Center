@@ -9,12 +9,34 @@ import type { Notification, NotificationType } from '@/types';
 import { generateId } from '@/utils/helpers';
 import { NOTIFICATION_DURATION_MS } from '@/utils/constants';
 
+export interface ConfirmationGuardFact {
+  label: string;
+  value: string;
+}
+
+/**
+ * Extra steps for actions that spend something scarce (quota resets). The modal shows a
+ * review step with these facts, then asks for a typed word and a press-and-hold.
+ */
+export interface ConfirmationGuard {
+  facts: ConfirmationGuardFact[];
+  /** Reasons the action may be wasted right now, shown on the review step. */
+  warnings: string[];
+  /** Plain statement of what the final button spends. */
+  finalNote: string;
+  /** Word the operator types before the final button unlocks. */
+  phrase: string;
+  holdMs: number;
+  holdLabel: string;
+}
+
 interface ConfirmationOptions {
   title?: string;
   message: ReactNode;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'primary' | 'secondary';
+  guard?: ConfirmationGuard;
   onConfirm: () => void | Promise<void>;
   onCancel?: () => void;
 }

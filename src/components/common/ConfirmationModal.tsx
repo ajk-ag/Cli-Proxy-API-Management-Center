@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useNotificationStore } from '@/stores';
+import { GuardedConfirmation } from './GuardedConfirmation';
 
 export function ConfirmationModal() {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ export function ConfirmationModal() {
     confirmText,
     cancelText,
     variant = 'primary',
+    guard,
   } = options;
 
   const handleConfirm = async () => {
@@ -48,6 +50,21 @@ export function ConfirmationModal() {
     }
     hideConfirmation();
   };
+
+  if (guard) {
+    return (
+      <Modal open={isOpen} onClose={handleCancel} title={title} closeDisabled={isLoading}>
+        <GuardedConfirmation
+          message={message}
+          guard={guard}
+          isLoading={isLoading}
+          cancelText={cancelText}
+          onCancel={handleCancel}
+          onConfirm={() => void handleConfirm()}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal open={isOpen} onClose={handleCancel} title={title} closeDisabled={isLoading}>

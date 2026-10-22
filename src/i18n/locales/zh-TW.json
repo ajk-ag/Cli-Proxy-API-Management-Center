@@ -2337,5 +2337,30 @@
     "error": "綁定失敗，請重新開始。",
     "unsupported": "目前後端不支援 SIWC 綁定。",
     "expired": "綁定工作階段已過期，請重新開始。"
+  },
+  "reset_guard": {
+    "step_review": "第 1 步，共 2 步 · 核對帳號",
+    "step_confirm": "第 2 步，共 2 步 · 確認",
+    "continue": "繼續",
+    "back": "返回",
+    "fact_account": "帳號",
+    "fact_resets_left": "剩餘手動重置次數",
+    "resets_left_value": "目前 {{before}} 次，本次後剩 {{after}} 次",
+    "fact_next_expiry": "最近一次重置到期",
+    "fact_grant": "重置額度來源",
+    "window_left": "剩餘 {{left}}%",
+    "window_left_until": "剩餘 {{left}}% · {{when}}自動恢復",
+    "warnings_title": "使用重置前請確認",
+    "warn_low_usage": "此限額僅使用了 {{used}}%，現在重置只能恢復 {{used}}%。",
+    "warn_refills_soon": "此限額將在{{when}}自動恢復。",
+    "warn_usage_unknown": "無法讀取目前用量，請先重新整理配額。",
+    "warn_not_limited": "Anthropic 僅在帳號達到限額時接受此重置，而該帳號目前未達到限額。",
+    "final_note": "此操作將消耗 1 次手動重置，且無法復原。",
+    "type_label": "輸入 {{phrase}} 以解鎖按鈕",
+    "locked_hint": "輸入 {{phrase}} 後按鈕才會解鎖。",
+    "hold_hint": "按住 {{seconds}} 秒。提前放開即取消。",
+    "holding": "請繼續按住…",
+    "working": "正在重置…",
+    "hold_button": "按住以重置"
   }
 }

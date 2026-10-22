@@ -2310,5 +2310,30 @@
     "error": "Binding failed. Please start over.",
     "unsupported": "This backend does not support SIWC binding.",
     "expired": "The binding session expired. Please start over."
+  },
+  "reset_guard": {
+    "step_review": "Step 1 of 2 · Check the account",
+    "step_confirm": "Step 2 of 2 · Confirm",
+    "continue": "Continue",
+    "back": "Back",
+    "fact_account": "Account",
+    "fact_resets_left": "Manual resets left",
+    "resets_left_value": "{{before}} now, {{after}} after this",
+    "fact_next_expiry": "Next reset expires",
+    "fact_grant": "Reset grant",
+    "window_left": "{{left}}% left",
+    "window_left_until": "{{left}}% left · refills on its own {{when}}",
+    "warnings_title": "Check before spending a reset",
+    "warn_low_usage": "Only {{used}}% of this limit is used, so a reset now gives back just {{used}}%.",
+    "warn_refills_soon": "This limit refills on its own {{when}}.",
+    "warn_usage_unknown": "Current usage could not be read. Refresh the quota first.",
+    "warn_not_limited": "Anthropic accepts this reset only while the account is at its limit, and it is not at its limit now.",
+    "final_note": "This spends 1 manual reset. It cannot be undone.",
+    "type_label": "Type {{phrase}} to unlock the button",
+    "locked_hint": "The button unlocks after you type {{phrase}}.",
+    "hold_hint": "Press and hold for {{seconds}} seconds. Letting go early cancels.",
+    "holding": "Keep holding…",
+    "working": "Resetting…",
+    "hold_button": "Hold to reset"
   }
 }

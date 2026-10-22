@@ -15,6 +15,7 @@ import { IconRefreshCw } from '@/components/ui/icons';
 import { bindQuotaClasses } from '@/features/quota/types';
 import { QUOTA_ADAPTERS, type QuotaCardState } from '@/features/quota/providers';
 import { hasClaudeUsageData } from '@/features/quota/providers/claude/data';
+import { buildAdapterResetGuard } from '@/features/quota/resetGuard';
 import styles from './AuthFileQuota.module.scss';
 
 /** Bind the auth-file host's compact styles to the quota rendering contract. */
@@ -36,7 +37,7 @@ export type AuthFileQuotaSectionProps = {
 
 export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   const { file, quotaType, disableControls } = props;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
   const showConfirmation = useNotificationStore((state) => state.showConfirmation);
   const [resettingQuota, setResettingQuota] = useState(false);
@@ -125,6 +126,13 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       message: t('codex_quota.reset_confirm_message', { name: file.name }),
       confirmText: t('codex_quota.reset_confirm_button'),
       variant: 'primary',
+      guard: buildAdapterResetGuard(adapter.type, {
+        fileName: file.name,
+        quota,
+        now: Date.now(),
+        t,
+        locale: i18n.resolvedLanguage,
+      }),
       onConfirm: async () => {
         const cacheGeneration = captureQuotaCacheGeneration(file.name);
         setResettingQuota(true);
@@ -152,7 +160,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     cacheKey,
     disableControls,
     file,
-    quota?.status,
+    i18n.resolvedLanguage,
+    quota,
     resettingQuota,
     showConfirmation,
     showNotification,

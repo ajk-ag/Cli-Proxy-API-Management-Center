@@ -15,13 +15,14 @@ import type { AuthFileItem } from '@/types';
 import { getStatusFromError } from '@/utils/quota';
 import { getQuotaCacheKey } from '@/utils/quota/identity';
 import { enrichQuotaInBackground } from '../quotaEnrichment';
+import { buildAdapterResetGuard } from '../resetGuard';
 import { getQuotaMap, getQuotaSetter, type QuotaAdapter, type QuotaCardState } from '../providers';
 
 const getQuotaState = (adapter: QuotaAdapter, file: AuthFileItem): QuotaCardState | undefined =>
   getQuotaMap(adapter)[getQuotaCacheKey(file)];
 
 export function useQuotaActions(disableControls: boolean) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
   const showConfirmation = useNotificationStore((state) => state.showConfirmation);
   const [resettingQuotaName, setResettingQuotaName] = useState<string | null>(null);
@@ -83,6 +84,13 @@ export function useQuotaActions(disableControls: boolean) {
         message: t('codex_quota.reset_confirm_message', { name: file.name }),
         confirmText: t('codex_quota.reset_confirm_button'),
         variant: 'primary',
+        guard: buildAdapterResetGuard(adapter.type, {
+          fileName: file.name,
+          quota: getQuotaState(adapter, file),
+          now: Date.now(),
+          t,
+          locale: i18n.resolvedLanguage,
+        }),
         onConfirm: async () => {
           const cacheGeneration = captureQuotaCacheGeneration(file.name);
           const setQuota = getQuotaSetter(adapter);
@@ -110,7 +118,14 @@ export function useQuotaActions(disableControls: boolean) {
         },
       });
     },
-    [disableControls, resettingQuotaName, showConfirmation, showNotification, t]
+    [
+      disableControls,
+      i18n.resolvedLanguage,
+      resettingQuotaName,
+      showConfirmation,
+      showNotification,
+      t,
+    ]
   );
 
   return { resettingQuotaName, refreshQuota, resetQuota };
