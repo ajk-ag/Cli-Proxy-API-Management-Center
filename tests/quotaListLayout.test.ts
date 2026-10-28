@@ -8,9 +8,13 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { groupQuotaEntries, type QuotaFileEntry } from '@/features/quota/logic';
+import { CodexQuotaBody } from '@/features/quota/providers/codex/CodexQuotaBody';
+import { QUOTA_CLASS_KEYS, bindQuotaClasses } from '@/features/quota/types';
 import { readQuotaLayout, writeQuotaLayout } from '@/features/quota/uiState';
-import type { AuthFileItem } from '@/types';
+import type { AuthFileItem, CodexQuotaState } from '@/types';
 
 const entry = (name: string, type: QuotaFileEntry['type']): QuotaFileEntry => ({
   file: { name } as AuthFileItem,
@@ -85,7 +89,9 @@ describe('list rows reuse the card, including its guarded reset actions', () => 
   const card = readFileSync('src/features/quota/components/QuotaCard.tsx', 'utf8');
 
   test('the list renders QuotaCard rows wired to the same refresh and reset handlers', () => {
-    const listStart = page.indexOf("layout === 'list' ? (\n          <div className={styles.list}>");
+    const listStart = page.indexOf(
+      "layout === 'list' ? (\n          <div className={styles.list}>"
+    );
     const gridStart = page.indexOf('<div className={styles.grid}>', listStart);
     expect(listStart).toBeGreaterThan(-1);
     const listBranch = page.slice(listStart, gridStart);
@@ -134,6 +140,55 @@ describe('list cell styles', () => {
     expect(rule('.listLayout .quotaRowHeader > .quotaMeta > .quotaPercent')).toContain(
       'max-width: 60%;'
     );
+  });
+});
+
+describe('plan row placement', () => {
+  const classes = bindQuotaClasses(
+    Object.fromEntries(QUOTA_CLASS_KEYS.map((key) => [key, key])),
+    'test-host'
+  );
+  const quota: CodexQuotaState = {
+    status: 'success',
+    planType: 'pro',
+    windows: [
+      {
+        id: 'weekly',
+        label: 'Weekly limit',
+        usedPercent: 10,
+        resetLabel: '11-04 14:35',
+        resetAtMs: Date.now() + 6 * 24 * 3600 * 1000,
+        periodHours: 168,
+      },
+    ],
+  };
+  const render = (planContainer?: HTMLElement | null) =>
+    renderToStaticMarkup(createElement(CodexQuotaBody, { quota, classes, planContainer }));
+
+  test('cards keep the plan row inline at the top of the body', () => {
+    const html = render(undefined);
+    expect(html).toContain('class="codexPlan"');
+    expect(html.indexOf('codexPlan')).toBeLessThan(html.indexOf('quotaRow'));
+  });
+
+  test('list rows leave it out of the body until the slot under the name exists', () => {
+    const html = render(null);
+    expect(html).not.toContain('codexPlan');
+    expect(html).toContain('quotaRow');
+  });
+
+  test('every provider that draws a plan row routes it through the slot', () => {
+    for (const provider of ['claude', 'antigravity', 'codex', 'devin', 'meta', 'plugin', 'xai']) {
+      const name = provider[0].toUpperCase() + provider.slice(1);
+      const source = readFileSync(
+        `src/features/quota/providers/${provider}/${name}QuotaBody.tsx`,
+        'utf8'
+      );
+      const plans = source.match(/className=\{classes\.codexPlan\}/g) ?? [];
+      const slots = source.match(/<QuotaPlanSlot container=\{planContainer\}>/g) ?? [];
+      expect(plans.length).toBeGreaterThan(0);
+      expect(slots.length).toBe(plans.length);
+    }
   });
 });
 

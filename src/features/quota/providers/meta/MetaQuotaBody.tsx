@@ -7,8 +7,9 @@ import { QuotaMeter } from '../../components/QuotaMeter';
 import { QuotaResetLabel } from '../../components/QuotaResetLabel';
 import { collectQuotaRowInstants, pickUrgentRowId } from '../../resetSchedule';
 import type { QuotaBodyProps } from '../../types';
+import { QuotaPlanSlot } from '../../components/QuotaPlanSlot';
 
-export function MetaQuotaBody({ quota, classes }: QuotaBodyProps<MetaQuotaState>) {
+export function MetaQuotaBody({ quota, classes, planContainer }: QuotaBodyProps<MetaQuotaState>) {
   const { t, i18n } = useTranslation();
   const now = useNow();
   const soonestRowId = useMemo(
@@ -21,12 +22,14 @@ export function MetaQuotaBody({ quota, classes }: QuotaBodyProps<MetaQuotaState>
   return (
     <>
       {data.planName && (
-        <div className={classes.codexPlan}>
-          <span className={classes.codexPlanItem}>
-            <span className={classes.codexPlanLabel}>{t('meta_quota.plan')}</span>
-            <span className={classes.codexPlanValue}>{data.planName}</span>
-          </span>
-        </div>
+        <QuotaPlanSlot container={planContainer}>
+          <div className={classes.codexPlan}>
+            <span className={classes.codexPlanItem}>
+              <span className={classes.codexPlanLabel}>{t('meta_quota.plan')}</span>
+              <span className={classes.codexPlanValue}>{data.planName}</span>
+            </span>
+          </div>
+        </QuotaPlanSlot>
       )}
       {data.windows.every((window) => window.usedPercent === null) && (
         <div className={classes.quotaMessage}>{t('meta_quota.empty_data')}</div>

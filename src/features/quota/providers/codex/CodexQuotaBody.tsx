@@ -22,6 +22,7 @@ import { QuotaMeter } from '../../components/QuotaMeter';
 import { QuotaResetLabel } from '../../components/QuotaResetLabel';
 import { collectQuotaRowInstants, pickUrgentRowId, resetCreditRowId } from '../../resetSchedule';
 import type { QuotaBodyProps, QuotaClassMap } from '../../types';
+import { QuotaPlanSlot } from '../../components/QuotaPlanSlot';
 
 const getPlanValueClass = (planType: string | null, classes: QuotaClassMap): string => {
   // elite/premium 顺序契约由 resolvePlanTier 承载（tests/quotaPlanTier.test.ts 守护）。
@@ -31,7 +32,7 @@ const getPlanValueClass = (planType: string | null, classes: QuotaClassMap): str
   return classes.codexPlanValue;
 };
 
-export function CodexQuotaBody({ quota, classes }: QuotaBodyProps<CodexQuotaState>) {
+export function CodexQuotaBody({ quota, classes, planContainer }: QuotaBodyProps<CodexQuotaState>) {
   const { t, i18n } = useTranslation();
   const now = useNow();
   const locale = i18n.resolvedLanguage;
@@ -89,41 +90,45 @@ export function CodexQuotaBody({ quota, classes }: QuotaBodyProps<CodexQuotaStat
         creditsUnlimited ||
         creditBalance !== null ||
         rateLimitResetCreditsAvailableCount !== null) && (
-        <div className={classes.codexPlan}>
-          {planLabel && (
-            <span className={classes.codexPlanItem}>
-              <span className={classes.codexPlanLabel}>{t('codex_quota.plan_label')}</span>
-              <span className={planValueClass}>{planLabel}</span>
-            </span>
-          )}
-          {expiryDisplay && (
-            <span className={classes.codexPlanItem}>
-              <span className={classes.codexPlanLabel}>{t('codex_quota.expires_label')}</span>
-              <span className={classes.codexPlanValue}>{expiryDisplay.absolute}</span>
-              {expiryDisplay.relative && (
-                <span className={classes.quotaResetRelative}>{expiryDisplay.relative}</span>
-              )}
-            </span>
-          )}
-          {(creditsUnlimited || creditBalance !== null) && (
-            <span className={classes.codexPlanItem}>
-              <span className={classes.codexPlanLabel}>
-                {t('codex_quota.credit_balance_label')}
+        <QuotaPlanSlot container={planContainer}>
+          <div className={classes.codexPlan}>
+            {planLabel && (
+              <span className={classes.codexPlanItem}>
+                <span className={classes.codexPlanLabel}>{t('codex_quota.plan_label')}</span>
+                <span className={planValueClass}>{planLabel}</span>
               </span>
-              <span className={classes.codexPlanValue}>
-                {creditsUnlimited ? t('codex_quota.credit_unlimited') : creditBalance}
+            )}
+            {expiryDisplay && (
+              <span className={classes.codexPlanItem}>
+                <span className={classes.codexPlanLabel}>{t('codex_quota.expires_label')}</span>
+                <span className={classes.codexPlanValue}>{expiryDisplay.absolute}</span>
+                {expiryDisplay.relative && (
+                  <span className={classes.quotaResetRelative}>{expiryDisplay.relative}</span>
+                )}
               </span>
-            </span>
-          )}
-          {rateLimitResetCreditsAvailableCount !== null && (
-            <span className={classes.codexPlanItem}>
-              <span className={classes.codexPlanLabel}>{t('codex_quota.reset_credits_label')}</span>
-              <span className={classes.codexPlanValue}>
-                {rateLimitResetCreditsAvailableCount.toString()}
+            )}
+            {(creditsUnlimited || creditBalance !== null) && (
+              <span className={classes.codexPlanItem}>
+                <span className={classes.codexPlanLabel}>
+                  {t('codex_quota.credit_balance_label')}
+                </span>
+                <span className={classes.codexPlanValue}>
+                  {creditsUnlimited ? t('codex_quota.credit_unlimited') : creditBalance}
+                </span>
               </span>
-            </span>
-          )}
-        </div>
+            )}
+            {rateLimitResetCreditsAvailableCount !== null && (
+              <span className={classes.codexPlanItem}>
+                <span className={classes.codexPlanLabel}>
+                  {t('codex_quota.reset_credits_label')}
+                </span>
+                <span className={classes.codexPlanValue}>
+                  {rateLimitResetCreditsAvailableCount.toString()}
+                </span>
+              </span>
+            )}
+          </div>
+        </QuotaPlanSlot>
       )}
       {rateLimitResetCredits.length > 0 ? (
         <div className={classes.codexResetCredits}>

@@ -16,6 +16,7 @@ import {
   resolveAntigravityGroupModels,
   shouldShowAntigravityQuotaAvailable,
 } from './labels';
+import { QuotaPlanSlot } from '../../components/QuotaPlanSlot';
 
 const formatAntigravityDuration = (t: TFunction, deltaMs: number): string => {
   const totalMinutes = Math.max(1, Math.ceil(deltaMs / 60000));
@@ -91,7 +92,11 @@ const getAntigravityPlanLabel = (
   );
 };
 
-export function AntigravityQuotaBody({ quota, classes }: QuotaBodyProps<AntigravityQuotaState>) {
+export function AntigravityQuotaBody({
+  quota,
+  classes,
+  planContainer,
+}: QuotaBodyProps<AntigravityQuotaState>) {
   const { t } = useTranslation();
   const groups = quota.groups ?? [];
   const planLabel = getAntigravityPlanLabel(quota.subscription, t);
@@ -138,14 +143,16 @@ export function AntigravityQuotaBody({ quota, classes }: QuotaBodyProps<Antigrav
   return (
     <>
       {planLabel && (
-        <div className={classes.codexPlan}>
-          <span className={classes.codexPlanItem}>
-            <span className={classes.codexPlanLabel}>{t('antigravity_quota.plan_label')}</span>
-            <span className={isPremiumPlan ? classes.premiumPlanValue : classes.codexPlanValue}>
-              {planLabel}
+        <QuotaPlanSlot container={planContainer}>
+          <div className={classes.codexPlan}>
+            <span className={classes.codexPlanItem}>
+              <span className={classes.codexPlanLabel}>{t('antigravity_quota.plan_label')}</span>
+              <span className={isPremiumPlan ? classes.premiumPlanValue : classes.codexPlanValue}>
+                {planLabel}
+              </span>
             </span>
-          </span>
-        </div>
+          </div>
+        </QuotaPlanSlot>
       )}
       {groups.length === 0 ? (
         <div className={classes.quotaMessage}>{t('antigravity_quota.empty_models')}</div>

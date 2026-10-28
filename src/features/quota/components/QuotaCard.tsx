@@ -66,10 +66,14 @@ export function QuotaCard(props: QuotaCardProps) {
   const displayName = getQuotaDisplayName(file);
 
   // Capture the entrance delay only at mount, without a render-time ref read.
+  // List rows draw the provider's plan row under the name (as in Theo's layout).
+  // The slot is an element, so it is tracked as state: the body re-renders into it
+  // once it has mounted, and draws nothing there until then.
+  const [planSlot, setPlanSlot] = useState<HTMLDivElement | null>(null);
+  const planContainer = isRow ? planSlot : undefined;
+
   // Rows never animate in: a list that slides should not move under the pointer.
-  const [mountEntranceDelayMs] = useState<number | null>(
-    isRow ? null : (entranceDelayMs ?? null)
-  );
+  const [mountEntranceDelayMs] = useState<number | null>(isRow ? null : (entranceDelayMs ?? null));
   const entranceStyle =
     mountEntranceDelayMs === null
       ? undefined
@@ -149,6 +153,7 @@ export function QuotaCard(props: QuotaCardProps) {
         <span className={styles.fileName} title={displayName}>
           {displayName}
         </span>
+        {isRow && <div ref={setPlanSlot} className={styles.planSlot} />}
       </header>
 
       <div className={isRow ? bodyStyles.listLayout : styles.body}>
@@ -182,6 +187,7 @@ export function QuotaCard(props: QuotaCardProps) {
             classes={quotaClasses}
             planItems={claudePlanItems}
             afterPlan={claudeAfterPlan}
+            planContainer={planContainer}
           />
         ) : !retainedClaudeUsage ? (
           <div className={styles.idleHint}>{t(`${adapter.i18nPrefix}.idle`)}</div>
@@ -197,6 +203,7 @@ export function QuotaCard(props: QuotaCardProps) {
             classes={quotaClasses}
             planItems={claudePlanItems}
             afterPlan={claudeAfterPlan}
+            planContainer={planContainer}
           />
         )}
       </div>

@@ -318,7 +318,28 @@
 }
 
 .cardRow .head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   min-height: 22px;
+}
+
+.cardRow .fileName {
+  max-width: 100%;
+}
+
+/* The provider's plan row, moved under the name. */
+.cardRow .planSlot {
+  min-width: 0;
+  max-width: 100%;
+
+  &:empty {
+    display: none;
+  }
+
+  > * {
+    gap: 3px 10px;
+  }
 }
 
 .cardRow .iconWrap {

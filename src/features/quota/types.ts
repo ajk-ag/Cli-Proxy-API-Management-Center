@@ -105,4 +105,9 @@ export interface QuotaBodyProps<TState> {
   planItems?: ReactNode;
   /** Host-owned content placed right after the plan row, before usage rows. */
   afterPlan?: ReactNode;
+  /**
+   * Where the plan row goes: undefined = inline (cards), an element = drawn there
+   * (list rows, under the credential name), null = not drawn yet. See QuotaPlanSlot.
+   */
+  planContainer?: HTMLElement | null;
 }

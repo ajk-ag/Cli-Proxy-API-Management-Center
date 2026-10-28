@@ -11,12 +11,14 @@ import { QuotaMeter } from '../../components/QuotaMeter';
 import { QuotaResetLabel } from '../../components/QuotaResetLabel';
 import { collectQuotaRowInstants, pickUrgentRowId } from '../../resetSchedule';
 import type { QuotaBodyProps } from '../../types';
+import { QuotaPlanSlot } from '../../components/QuotaPlanSlot';
 
 export function ClaudeQuotaBody({
   quota,
   classes,
   planItems,
   afterPlan,
+  planContainer,
 }: QuotaBodyProps<ClaudeQuotaState>) {
   const { t, i18n } = useTranslation();
   const now = useNow();
@@ -60,15 +62,17 @@ export function ClaudeQuotaBody({
         </div>
       )}
       {(planType || planItems) && (
-        <div className={classes.codexPlan}>
-          {planType && (
-            <span className={classes.codexPlanItem}>
-              <span className={classes.codexPlanLabel}>{t('claude_quota.plan_label')}</span>
-              <span className={classes.codexPlanValue}>{t(`claude_quota.${planType}`)}</span>
-            </span>
-          )}
-          {planItems}
-        </div>
+        <QuotaPlanSlot container={planContainer}>
+          <div className={classes.codexPlan}>
+            {planType && (
+              <span className={classes.codexPlanItem}>
+                <span className={classes.codexPlanLabel}>{t('claude_quota.plan_label')}</span>
+                <span className={classes.codexPlanValue}>{t(`claude_quota.${planType}`)}</span>
+              </span>
+            )}
+            {planItems}
+          </div>
+        </QuotaPlanSlot>
       )}
       {afterPlan}
       {/* Extra usage and dollar balances share the window-row anatomy:
