@@ -113,6 +113,30 @@ describe('list rows reuse the card, including its guarded reset actions', () => 
   });
 });
 
+describe('list cell styles', () => {
+  const body = readFileSync('src/features/quota/components/QuotaBody.module.scss', 'utf8');
+  const rule = (selector: string) => {
+    const start = body.indexOf(`${selector} {`);
+    expect(start).toBeGreaterThan(-1);
+    return body.slice(start, body.indexOf('\n}', start));
+  };
+
+  test('limit cells lay out as a wrapping row, not the stacked card column', () => {
+    // The base .quotaRow is flex-direction: column; without the override the bar
+    // collapses to zero width and every part lands on its own line.
+    const row = rule('.listLayout .quotaRow');
+    expect(row).toContain('flex-direction: row;');
+    expect(row).toContain('flex-wrap: wrap;');
+  });
+
+  test('cells can shrink to their column and long statuses wrap inside them', () => {
+    expect(rule('.listLayout')).toContain('min-width: 0;');
+    expect(rule('.listLayout .quotaRowHeader > .quotaMeta > .quotaPercent')).toContain(
+      'max-width: 60%;'
+    );
+  });
+});
+
 describe('frozen plan badge styles', () => {
   test('the list layout leaves the plan badge block byte-identical', () => {
     const marker = '套餐徽章定稿区块';

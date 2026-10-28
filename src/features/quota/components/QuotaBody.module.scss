@@ -201,13 +201,14 @@
 
 .listLayout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
-  gap: 10px 28px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 12px 28px;
   align-items: start;
   min-width: 0;
 
   > * {
     grid-column: 1 / -1;
+    min-width: 0;
   }
 
   > .quotaRow,
@@ -225,20 +226,40 @@
   }
 }
 
+/* Each limit cell is one wrapping flex line: label and percent, then the bar
+   on a line of its own, then the reset parts flowing inline. The header and
+   its meta box are flattened so their pieces can be ordered around the bar.
+   A long status (e.g. "Usage unavailable") wraps inside at most 60% of the
+   cell instead of pushing the cell wider than its column. */
 .listLayout .quotaRow {
-  display: grid;
-  grid-template-columns: repeat(3, auto) minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 4px;
-
-  > * {
-    grid-column: 1 / -1;
-  }
+  min-width: 0;
 
   > .quotaBar {
-    grid-row: 2;
+    order: 3;
+    flex: 0 0 100%;
     align-self: center;
   }
+
+  /* Amount lines and notes under the limit, one per line. */
+  > .quotaAmount,
+  > .quotaMeta {
+    order: 5;
+    flex: 0 0 100%;
+  }
+}
+
+/* Without a meter, still start the reset parts on their own line. */
+.listLayout .quotaRow:not(:has(.quotaBar))::after {
+  content: '';
+  order: 3;
+  flex: 0 0 100%;
+  height: 0;
+  margin-top: -6px;
 }
 
 .listLayout .quotaRowHeader,
@@ -247,27 +268,30 @@
 }
 
 .listLayout .quotaRowHeader > .quotaModel {
-  grid-row: 1;
-  grid-column: 1 / 5;
+  order: 1;
+  flex: 1 0 auto;
+  max-width: 100%;
 }
 
 .listLayout .quotaRowHeader > .quotaMeta > * {
-  grid-row: 3;
-  grid-column: auto;
+  order: 4;
   white-space: nowrap;
 }
 
 .listLayout .quotaRowHeader > .quotaMeta > .quotaPercent {
-  grid-row: 1;
-  grid-column: 5;
-  justify-self: end;
+  order: 2;
+  flex: 0 1 auto;
+  max-width: 60%;
+  margin-left: auto;
+  text-align: right;
+  white-space: normal;
 }
 
 .listLayout .quotaRowHeader > .quotaMeta > .quotaAmount {
   margin-right: 4px;
 }
 
-/* In the limit cells the grid gap already spaces the parts; inline reset lists
+/* In the limit cells the flex gap already spaces the parts; inline reset lists
    keep the default spacing around the separator. */
 .listLayout .quotaRowHeader > .quotaMeta > .quotaResetRelative::before {
   margin: 0 4px 0 0;
@@ -278,10 +302,20 @@
   content: none;
 }
 
+.listLayout .antigravityQuotaGroup {
+  min-width: 0;
+}
+
 .listLayout .antigravityQuotaGroup + .antigravityQuotaGroup {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
+}
+
+/* The group names say which models a column covers; the longer notes stay in
+   the card layout, where they do not push one column below the others. */
+.listLayout .antigravityQuotaGroupDescription {
+  display: none;
 }
 
 .listLayout .codexResetCredits {
@@ -291,14 +325,19 @@
 
 .listLayout .codexResetCreditRow {
   justify-content: flex-start;
-  flex-wrap: nowrap;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 0 8px;
   padding: 0;
   border: 0;
   background: none;
   font-family: $font-mono;
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
+}
+
+.listLayout .codexResetCreditLabel {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .listLayout .codexResetCreditTime {
