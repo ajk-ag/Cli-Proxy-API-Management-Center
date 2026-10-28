@@ -23,14 +23,22 @@ import { useAuthStore, useQuotaStore, useThemeStore } from '@/stores';
 import type { AuthFileItem, ResolvedTheme } from '@/types';
 import { getQuotaCacheKey } from '@/utils/quota/identity';
 import { ProviderTabs } from '@/features/authFiles/components/ProviderTabs';
+import {
+  getAuthFileIcon,
+  getThemeSurfaceIconBackground,
+  getTypeLabel,
+  isThemeSurfaceIconProvider,
+} from '@/features/authFiles/constants';
 import { QuotaHeader } from './components/QuotaHeader';
 import { QuotaCard } from './components/QuotaCard';
 import { QuotaTimeline } from './components/QuotaTimeline';
 import {
   CARD_ENTRANCE_BUDGET_MS,
+  QUOTA_LAYOUTS,
   QUOTA_PAGE_SIZE,
   QUOTA_SORT_MODES,
   QUOTA_TAB_ORDER,
+  type QuotaLayout,
   type QuotaSortMode,
   type QuotaTabId,
 } from './constants';
@@ -40,6 +48,7 @@ import {
   classifyQuotaFiles,
   filterEntriesByTab,
   filterEntriesBySearch,
+  groupQuotaEntries,
   paginate,
   sortQuotaEntries,
   type QuotaFileEntry,
@@ -50,11 +59,17 @@ import type { QuotaProviderType } from './providers/types';
 import { useDevinQuotaAutoLoad } from './providers/devin/useDevinQuotaAutoLoad';
 import { useQuotaActions } from './hooks/useQuotaActions';
 import { useQuotaBatchLoader } from './hooks/useQuotaBatchLoader';
-import { readQuotaUiState, writeQuotaUiState } from './uiState';
+import {
+  readQuotaLayout,
+  readQuotaUiState,
+  writeQuotaLayout,
+  writeQuotaUiState,
+} from './uiState';
 import styles from './QuotaPage.module.scss';
 
 const TAB_IDS: string[] = ['all', ...QUOTA_TAB_ORDER];
 const SKELETON_CARD_COUNT = 6;
+const SKELETON_ROW_COUNT = 4;
 
 /**
  * Existing providers display filenames; Devin's card and timeline share an
@@ -74,6 +89,7 @@ export function QuotaPage() {
   const [sortMode, setSortMode] = useState<QuotaSortMode>(
     () => readQuotaUiState()?.sortMode ?? 'default'
   );
+  const [layout, setLayout] = useState<QuotaLayout>(() => readQuotaLayout() ?? 'cards');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -208,6 +224,11 @@ export function QuotaPage() {
     setSortMode(next as QuotaSortMode);
     setPage(1);
     writeQuotaUiState({ sortMode: next as QuotaSortMode });
+  }, []);
+
+  const handleLayoutChange = useCallback((next: QuotaLayout) => {
+    setLayout(next);
+    writeQuotaLayout(next);
   }, []);
 
   const sortOptions = useMemo(
@@ -373,14 +394,32 @@ export function QuotaPage() {
               </button>
             )}
           </div>
-          <div className={styles.sort}>
-            <Select
-              value={sortMode}
-              options={sortOptions}
-              onChange={handleSortModeChange}
-              ariaLabel={t('quota_management.sort_label')}
-              size="sm"
-            />
+          <div className={styles.toolbarEnd}>
+            <div className={styles.sort}>
+              <Select
+                value={sortMode}
+                options={sortOptions}
+                onChange={handleSortModeChange}
+                ariaLabel={t('quota_management.sort_label')}
+                size="sm"
+              />
+            </div>
+            <div
+              className={styles.layoutToggle}
+              role="group"
+              aria-label={t('quota_management.layout_label')}
+            >
+              {QUOTA_LAYOUTS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={layout === value}
+                  onClick={() => handleLayoutChange(value)}
+                >
+                  {t(`quota_management.layout_${value}`)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -391,11 +430,19 @@ export function QuotaPage() {
         )}
 
         {loading ? (
-          <div className={styles.grid} aria-hidden="true">
-            {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
-              <Skeleton key={index} height={168} rounded={14} />
-            ))}
-          </div>
+          layout === 'list' ? (
+            <div className={styles.listSkeleton} aria-hidden="true">
+              {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+                <Skeleton key={index} height={64} rounded={10} />
+              ))}
+            </div>
+          ) : (
+            <div className={styles.grid} aria-hidden="true">
+              {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
+                <Skeleton key={index} height={168} rounded={14} />
+              ))}
+            </div>
+          )
         ) : isEmpty ? (
           <EmptyState
             title={
@@ -424,6 +471,50 @@ export function QuotaPage() {
               )
             }
           />
+        ) : layout === 'list' ? (
+          <div className={styles.list}>
+            {groupQuotaEntries(pageItems).map((group) => {
+              const iconSrc = getAuthFileIcon(group.type, resolvedTheme);
+              const headingId = `quota-list-${group.type}`;
+              return (
+                <section
+                  key={group.type}
+                  className={styles.listGroup}
+                  aria-labelledby={headingId}
+                >
+                  <h2 id={headingId} className={styles.listGroupTitle}>
+                    {iconSrc && (
+                      <span
+                        className={styles.listGroupIcon}
+                        style={
+                          isThemeSurfaceIconProvider(group.type)
+                            ? { background: getThemeSurfaceIconBackground(resolvedTheme) }
+                            : undefined
+                        }
+                      >
+                        <img src={iconSrc} alt="" />
+                      </span>
+                    )}
+                    {getTypeLabel(t, group.type)}
+                    <span className={styles.listGroupCount}>{group.entries.length}</span>
+                  </h2>
+                  {group.entries.map((entry) => (
+                    <QuotaCard
+                      key={`${entry.type}:${getQuotaCacheKey(entry.file)}`}
+                      layout="row"
+                      entry={entry}
+                      quota={getQuota(entry)}
+                      resolvedTheme={resolvedTheme}
+                      canRefresh={canUseActions && !entry.file.disabled}
+                      resetting={resettingQuotaName === getQuotaCacheKey(entry.file)}
+                      onRefresh={() => void refreshQuota(entry.file, QUOTA_ADAPTERS[entry.type])}
+                      onReset={() => resetQuota(entry.file, QUOTA_ADAPTERS[entry.type])}
+                    />
+                  ))}
+                </section>
+              );
+            })}
+          </div>
         ) : (
           <div className={styles.grid}>
             {pageItems.map((entry, index) => (

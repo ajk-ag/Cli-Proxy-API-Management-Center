@@ -1,6 +1,8 @@
 import {
+  QUOTA_LAYOUTS,
   QUOTA_SORT_MODES,
   QUOTA_TAB_ORDER,
+  type QuotaLayout,
   type QuotaSortMode,
   type QuotaTabId,
 } from './constants';
@@ -50,6 +52,35 @@ export const writeQuotaUiState = (state: QuotaUiState) => {
   try {
     const next = { ...readQuotaUiState(), ...state };
     window.sessionStorage.setItem(QUOTA_UI_STATE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+};
+
+/**
+ * Cards vs list is a lasting preference, so it lives in localStorage, unlike the
+ * session-scoped tab and sort above (same split as the auth files compact mode).
+ */
+const QUOTA_LAYOUT_KEY = 'quotaPage.layout';
+const QUOTA_LAYOUT_SET = new Set<string>(QUOTA_LAYOUTS);
+
+export const isQuotaLayout = (value: unknown): value is QuotaLayout =>
+  typeof value === 'string' && QUOTA_LAYOUT_SET.has(value);
+
+export const readQuotaLayout = (): QuotaLayout | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(QUOTA_LAYOUT_KEY);
+    return isQuotaLayout(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+};
+
+export const writeQuotaLayout = (layout: QuotaLayout) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(QUOTA_LAYOUT_KEY, layout);
   } catch {
     // ignore
   }

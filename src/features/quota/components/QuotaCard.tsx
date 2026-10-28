@@ -1,6 +1,10 @@
 /**
  * Provider quota card: identity, loading/error state, quota body, and actions.
  * Claude observations remain visible while refreshing or after a failed read.
+ *
+ * `layout="row"` draws the same content as one list row (identity | limits |
+ * actions). Only styling changes: data, states and the guarded reset actions
+ * are shared, so the two layouts cannot drift apart.
  */
 
 import { useState, type CSSProperties } from 'react';
@@ -35,6 +39,8 @@ export type QuotaCardProps = {
   resetting: boolean;
   /** Initial cascade delay; null disables entrance motion for later mounts. */
   entranceDelayMs?: number | null;
+  /** 'card' for the grid (default), 'row' for the list layout. */
+  layout?: 'card' | 'row';
   onRefresh: () => void;
   onReset: () => void;
 };
@@ -47,9 +53,11 @@ export function QuotaCard(props: QuotaCardProps) {
     canRefresh,
     resetting,
     entranceDelayMs,
+    layout = 'card',
     onRefresh,
     onReset,
   } = props;
+  const isRow = layout === 'row';
   const { t } = useTranslation();
   const adapter = QUOTA_ADAPTERS[entry.type];
   const file = entry.file;
@@ -58,7 +66,10 @@ export function QuotaCard(props: QuotaCardProps) {
   const displayName = getQuotaDisplayName(file);
 
   // Capture the entrance delay only at mount, without a render-time ref read.
-  const [mountEntranceDelayMs] = useState<number | null>(entranceDelayMs ?? null);
+  // Rows never animate in: a list that slides should not move under the pointer.
+  const [mountEntranceDelayMs] = useState<number | null>(
+    isRow ? null : (entranceDelayMs ?? null)
+  );
   const entranceStyle =
     mountEntranceDelayMs === null
       ? undefined
@@ -112,7 +123,11 @@ export function QuotaCard(props: QuotaCardProps) {
 
   return (
     <article
-      className={`${styles.card} ${mountEntranceDelayMs === null ? '' : styles.cardEnter}`}
+      className={
+        isRow
+          ? `${styles.card} ${styles.cardRow}`
+          : `${styles.card} ${mountEntranceDelayMs === null ? '' : styles.cardEnter}`
+      }
       style={entranceStyle}
     >
       <header className={styles.head}>
@@ -136,7 +151,7 @@ export function QuotaCard(props: QuotaCardProps) {
         </span>
       </header>
 
-      <div className={styles.body}>
+      <div className={isRow ? bodyStyles.listLayout : styles.body}>
         {status === 'idle' ? (
           <button
             type="button"

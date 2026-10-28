@@ -127,6 +127,28 @@ export function buildTabCounts(entries: QuotaFileEntry[]): Record<string, number
   return counts;
 }
 
+export interface QuotaEntryGroup {
+  type: QuotaProviderType;
+  entries: QuotaFileEntry[];
+}
+
+/**
+ * Split an already sorted list into provider groups for the list layout.
+ *
+ * Groups appear in the order of their first entry, and entries keep their order
+ * inside a group. With the default sort that is the provider order; with
+ * "soonest recovery" the group holding the soonest credential comes first.
+ */
+export function groupQuotaEntries(entries: QuotaFileEntry[]): QuotaEntryGroup[] {
+  const groups = new Map<QuotaProviderType, QuotaFileEntry[]>();
+  for (const entry of entries) {
+    const group = groups.get(entry.type);
+    if (group) group.push(entry);
+    else groups.set(entry.type, [entry]);
+  }
+  return Array.from(groups, ([type, grouped]) => ({ type, entries: grouped }));
+}
+
 export const isQuotaRefreshDisabled = (
   canRefresh: boolean,
   loading: boolean,

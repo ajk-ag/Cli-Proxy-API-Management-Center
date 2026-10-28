@@ -150,9 +150,62 @@
   }
 }
 
+/* Sort and layout sit together on the right; the search keeps the left. */
+.toolbarEnd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Same segmented look as the timeline's Weekly / 5-hour switch. */
+.layoutToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+
+  button {
+    padding: 4px 12px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+      color var(--dur-hover, 200ms) var(--ease-out-strong, ease-out),
+      background-color var(--dur-hover, 200ms) var(--ease-out-strong, ease-out);
+
+    &:hover {
+      color: var(--text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+
+    &[aria-pressed='true'] {
+      background: var(--floating-surface, var(--bg-primary));
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .clearSearch:active {
     transform: none;
+  }
+
+  .layoutToggle button {
+    transition: none;
   }
 }
 
@@ -192,6 +245,77 @@
   gap: 16px;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
   align-items: stretch;
+}
+
+/* ---------- 列表布局 ----------
+ * One row per credential, grouped by provider. The list owns three columns
+ * (name | limits | actions); groups and rows adopt them through subgrid, so
+ * names, limit columns and buttons line up down the whole list. A browser
+ * without subgrid keeps each element's local template instead. */
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(11rem, 17rem) minmax(0, 1fr) auto;
+  column-gap: 32px;
+  row-gap: 26px;
+  min-width: 0;
+}
+
+.listGroup {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(11rem, 17rem) minmax(0, 1fr) auto;
+  grid-template-columns: subgrid;
+  column-gap: 32px;
+  min-width: 0;
+}
+
+.listGroupTitle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.listGroupIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+
+  img {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    display: block;
+  }
+}
+
+.listGroupCount {
+  font-family: $font-mono;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.listSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@include mobile {
+  .list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ---------- 分页 ---------- */

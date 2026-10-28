@@ -289,6 +289,90 @@
   }
 }
 
+/* ---------- 列表行（layout="row"） ----------
+ * The list (QuotaPage .listGroup) owns three columns: name | limits | actions.
+ * Rows adopt them through subgrid so they line up across credentials; a
+ * browser without subgrid keeps the local template declared just before it. */
+
+.cardRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(11rem, 17rem) minmax(0, 1fr) auto;
+  grid-template-columns: subgrid;
+  align-items: start;
+  gap: 10px 32px;
+  padding: 14px 6px;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+  background: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card.cardRow:hover {
+    transform: none;
+    border-color: var(--border-color);
+    box-shadow: none;
+    background: color-mix(in srgb, var(--bg-secondary) 45%, transparent);
+  }
+}
+
+.cardRow .head {
+  min-height: 22px;
+}
+
+.cardRow .iconWrap {
+  display: none;
+}
+
+.cardRow .fileName {
+  font-size: 13px;
+}
+
+.cardRow .idleBody {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 12px;
+}
+
+.cardRow .idleHint {
+  text-align: left;
+}
+
+.cardRow .skeleton {
+  flex-direction: row;
+  gap: 28px;
+  padding: 2px 0;
+}
+
+.cardRow .skeletonRow {
+  flex: 0 1 12.5rem;
+}
+
+.cardRow .actionRow {
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.cardRow .actionPill {
+  border-color: transparent;
+  padding: 5px 9px;
+}
+
+@include mobile {
+  .cardRow {
+    gap: 10px;
+    padding: 14px 2px;
+  }
+
+  .cardRow .actionRow {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card,
   .idleBody,

@@ -192,6 +192,121 @@
   }
 }
 
+/* ---------- 列表外衣（QuotaCard layout="row"） ----------
+ * The body becomes a row of equal columns: limits first, then reset lists.
+ * Plan details and notices span the full width above them. Each limit reads
+ * label + percent / bar / reset time, so the eye can run down one column across
+ * credentials. Only placement and density change here; the frozen plan badge
+ * block below keeps its exact styles. */
+
+.listLayout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 10px 28px;
+  align-items: start;
+  min-width: 0;
+
+  > * {
+    grid-column: 1 / -1;
+  }
+
+  > .quotaRow,
+  > .codexResetCredits,
+  > .antigravityQuotaGroup {
+    grid-column: auto;
+    order: 1;
+  }
+
+  /* Rows without a meter (extra usage, dollar balances) and reset lists come
+     after the metered limits, so limit columns line up across credentials. */
+  > .codexResetCredits,
+  > .quotaRow:not(:has(.quotaBar)) {
+    order: 2;
+  }
+}
+
+.listLayout .quotaRow {
+  display: grid;
+  grid-template-columns: repeat(3, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 4px;
+
+  > * {
+    grid-column: 1 / -1;
+  }
+
+  > .quotaBar {
+    grid-row: 2;
+    align-self: center;
+  }
+}
+
+.listLayout .quotaRowHeader,
+.listLayout .quotaRowHeader > .quotaMeta {
+  display: contents;
+}
+
+.listLayout .quotaRowHeader > .quotaModel {
+  grid-row: 1;
+  grid-column: 1 / 5;
+}
+
+.listLayout .quotaRowHeader > .quotaMeta > * {
+  grid-row: 3;
+  grid-column: auto;
+  white-space: nowrap;
+}
+
+.listLayout .quotaRowHeader > .quotaMeta > .quotaPercent {
+  grid-row: 1;
+  grid-column: 5;
+  justify-self: end;
+}
+
+.listLayout .quotaRowHeader > .quotaMeta > .quotaAmount {
+  margin-right: 4px;
+}
+
+/* In the limit cells the grid gap already spaces the parts; inline reset lists
+   keep the default spacing around the separator. */
+.listLayout .quotaRowHeader > .quotaMeta > .quotaResetRelative::before {
+  margin: 0 4px 0 0;
+}
+
+/* Straight after the percent (no reset instant): nothing to separate from. */
+.listLayout .quotaRowHeader > .quotaMeta > .quotaResetRelative:nth-child(2)::before {
+  content: none;
+}
+
+.listLayout .antigravityQuotaGroup + .antigravityQuotaGroup {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.listLayout .codexResetCredits {
+  gap: 4px;
+  padding-top: 0;
+}
+
+.listLayout .codexResetCreditRow {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: $font-mono;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.listLayout .codexResetCreditTime {
+  margin-left: 0;
+  font-weight: 500;
+  text-align: left;
+}
+
 /* ============================================================
  * 以下至文件末尾：套餐徽章定稿区块（逐字节搬迁，禁止改动）
  * ============================================================ */
