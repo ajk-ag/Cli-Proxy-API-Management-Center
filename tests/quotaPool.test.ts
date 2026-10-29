@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import {
   accountsFromHistory,
   burnRate,
+  drainSeries,
+  firstReadingMs,
   projectPool,
   recordedSeries,
   remainingAt,
@@ -111,8 +113,17 @@ describe('recorded pool', () => {
   test('sums accounts from the first reading on', () => {
     const b = account('b', [reading(NOW - 2 * HOUR_MS, 40)]);
     const series = recordedSeries([a, b], NOW - 6 * HOUR_MS, NOW, HOUR_MS);
-    expect(series[0]).toEqual({ t: NOW - 4 * HOUR_MS, pool: 120 });
-    expect(series[series.length - 1]).toEqual({ t: NOW, pool: 135 });
+    expect(series[0]).toEqual({ t: NOW - 4 * HOUR_MS, pool: 120, parts: [80, 40] });
+    expect(series[series.length - 1]).toEqual({ t: NOW, pool: 135, parts: [95, 40] });
+  });
+
+  test('finds the first reading without spreading every reading into one call', () => {
+    const many = Array.from({ length: 200_000 }, (_, i) => reading(NOW - i * MINUTE_MS, 50));
+    many.reverse();
+    const busy = account('busy', many);
+    expect(firstReadingMs([busy, account('none', [])])).toBe(NOW - 199_999 * MINUTE_MS);
+    expect(firstReadingMs([account('none', [])])).toBeNull();
+    expect(recordedSeries([busy], NOW - HOUR_MS, NOW, HOUR_MS)).toHaveLength(2);
   });
 });
 
@@ -143,6 +154,48 @@ describe('burn rate', () => {
   test('needs at least 15 minutes of history', () => {
     expect(burnRate([account('a', [reading(NOW - 5 * MINUTE_MS, 50)])], NOW, 3)).toBeNull();
   });
+
+  test('a quiet stretch with no new readings is no usage, not missing history', () => {
+    const quiet = [account('a', [reading(NOW - 6 * HOUR_MS, 50), reading(NOW - 5 * HOUR_MS, 40)])];
+    expect(burnRate(quiet, NOW, 3)).toBe(0);
+  });
+});
+
+describe('drain rate', () => {
+  const reset = NOW + DAY_MS;
+  const accounts = [
+    account('a', [
+      reading(NOW - 4 * HOUR_MS, 80, reset),
+      reading(NOW - 2 * HOUR_MS, 70, reset),
+      reading(NOW - HOUR_MS, 60, reset),
+    ]),
+    account('b', [reading(NOW - 4 * HOUR_MS, 50, reset), reading(NOW - HOUR_MS, 44, reset)]),
+  ];
+
+  test('each step is the usage in the window before it, per hour, split by account', () => {
+    const series = drainSeries(accounts, NOW - 3 * HOUR_MS, NOW, HOUR_MS, 1);
+    expect(series.map((point) => point.t)).toEqual([
+      NOW - 3 * HOUR_MS,
+      NOW - 2 * HOUR_MS,
+      NOW - HOUR_MS,
+      NOW,
+    ]);
+    expect(series.map((point) => point.rate)).toEqual([0, 10, 16, 0]);
+    expect(series[2].parts).toEqual([10, 6]);
+  });
+
+  test('matches the burn rate at now', () => {
+    const [atNow] = drainSeries(accounts, NOW, NOW, HOUR_MS, 3);
+    expect(atNow.rate).toBeCloseTo(burnRate(accounts, NOW, 3) ?? -1, 9);
+    expect(atNow.rate).toBeCloseTo((10 + 10 + 6) / 3, 9);
+  });
+
+  test('is unknown until 15 minutes of history exist', () => {
+    const series = drainSeries(accounts, NOW - 4 * HOUR_MS, NOW - 3 * HOUR_MS, 10 * MINUTE_MS, 3);
+    expect(series[0].rate).toBeNull();
+    expect(series[1].rate).toBeNull();
+    expect(series[2].rate).toBe(0);
+  });
 });
 
 describe('projection', () => {
@@ -156,7 +209,28 @@ describe('projection', () => {
     expect(Math.abs((projection.emptyAtMs ?? 0) - (NOW + 6 * HOUR_MS))).toBeLessThanOrEqual(
       10 * MINUTE_MS
     );
-    expect(projection.points[0]).toEqual({ t: NOW, pool: 60 });
+    expect(projection.points[0]).toEqual({ t: NOW, pool: 60, parts: [50, 10] });
+  });
+
+  test('projects the drain: shared while both have quota, then all on the one left', () => {
+    const accounts = [account('big', [reading(NOW, 50)]), account('small', [reading(NOW, 10)])];
+    const { drain } = projectPool(accounts, NOW, NOW + DAY_MS, 10, 10 * MINUTE_MS);
+    const at = (ms: number) => drain.find((point) => point.t === ms);
+    expect(drain[0].t).toBe(NOW);
+    expect(drain[0].rate).toBeCloseTo(10, 9);
+    expect(drain[0].parts[0]).toBeCloseTo(5, 9);
+    expect(at(NOW + HOUR_MS)?.parts[1]).toBeCloseTo(5, 9);
+    expect(at(NOW + 3 * HOUR_MS)?.parts[0]).toBeCloseTo(10, 9);
+    expect(at(NOW + 3 * HOUR_MS)?.parts[1]).toBe(0);
+    expect(at(NOW + 8 * HOUR_MS)?.rate).toBe(0);
+  });
+
+  test('an account with no reading keeps its place but is not reported', () => {
+    const accounts = [account('none', []), account('a', [reading(NOW, 40)])];
+    const projection = projectPool(accounts, NOW, NOW + HOUR_MS, 0, 10 * MINUTE_MS);
+    expect(projection.points[0].parts).toEqual([0, 40]);
+    expect(projection.accounts.map((item) => item.key)).toEqual(['a']);
+    expect(projection.firstEmpty).toBeNull();
   });
 
   test('adds an account back to 100% at its reset, then every period after', () => {
@@ -234,5 +308,16 @@ describe('pool view wiring', () => {
     expect(view).toContain('quotaHistoryApi.list');
     expect(view).toContain('<details className={styles.table}>');
     expect(view).toContain('role="img"');
+  });
+
+  test('the page passes every credential so a search never repaints account colours', () => {
+    expect(page).toContain('allEntries={entries}');
+    expect(view).toContain('colorSlots.get(');
+  });
+
+  test('the view offers Remaining / Drain rate and an Accounts toggle, both remembered', () => {
+    expect(view).toContain('QUOTA_POOL_MODES.map');
+    expect(view).toContain('aria-pressed={showAccounts}');
+    expect(view).toContain('writeQuotaPoolPrefs({ mode, accounts: showAccounts, burnHours })');
   });
 });

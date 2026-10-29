@@ -7,6 +7,13 @@
  * on at the recent burn rate, spread evenly over the accounts that still have
  * quota, and adds each account back to 100% when its window resets.
  *
+ * The drain rate is the same pool seen as speed: percentage points used per
+ * hour over a trailing window, recorded from history and projected from the
+ * assumed burn.
+ *
+ * Every point also carries `parts`, each account's share in the order of the
+ * accounts passed in, so a chart can stack the accounts under the pool line.
+ *
  * Pure functions only: no React, no clock of its own (`now` is passed in).
  */
 
@@ -39,6 +46,17 @@ export interface PoolAccount {
 export interface PoolPoint {
   t: number;
   pool: number;
+  /** Each account's remaining percentage, in the order of the accounts passed in. */
+  parts: number[];
+}
+
+/** Percentage points used per hour at `t`. */
+export interface RatePoint {
+  t: number;
+  /** The whole pool, or null while there is too little history to tell. */
+  rate: number | null;
+  /** Each account's rate, in the order of the accounts passed in. */
+  parts: number[];
 }
 
 export interface PoolReset {
@@ -50,6 +68,8 @@ export interface PoolReset {
 
 export interface PoolProjection {
   points: PoolPoint[];
+  /** Usage per hour at each step, as the projection spends it. */
+  drain: RatePoint[];
   resets: PoolReset[];
   /** First time the whole pool reaches 0, or null when it stays above 0. */
   emptyAtMs: number | null;
@@ -83,6 +103,8 @@ export interface HistorySample {
 }
 
 const WEEK_MS = 7 * DAY_MS;
+/** A burn rate needs at least this much recorded history behind it. */
+const MIN_HISTORY_MS = 15 * MINUTE_MS;
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 
 /**
@@ -145,11 +167,15 @@ export function weeklyReadingFromQuota(
 export function remainingAt(account: PoolAccount, t: number): number | null {
   const { readings } = account;
   if (readings.length === 0) return null;
-  let current = readings[0];
-  for (const reading of readings) {
-    if (reading.atMs > t) break;
-    current = reading;
+  // The last reading taken at or before t (binary search: readings are sorted).
+  let low = 0;
+  let high = readings.length - 1;
+  while (low < high) {
+    const mid = (low + high + 1) >> 1;
+    if (readings[mid].atMs <= t) low = mid;
+    else high = mid - 1;
   }
+  const current = readings[low];
   if (current.atMs <= t && current.resetAtMs !== null && t >= current.resetAtMs) return 100;
   return current.remaining;
 }
@@ -161,53 +187,94 @@ export function recordedSeries(
   toMs: number,
   stepMs: number
 ): PoolPoint[] {
-  const firstReading = Math.min(
-    ...accounts.flatMap((account) => account.readings.map((reading) => reading.atMs))
-  );
-  if (!Number.isFinite(firstReading) || toMs < fromMs) return [];
-  const start = Math.max(fromMs, firstReading);
-  const points: PoolPoint[] = [];
-  for (let t = start; t <= toMs; t += stepMs) {
-    points.push({ t, pool: poolAt(accounts, t) });
-  }
-  if (points.length === 0 || points[points.length - 1].t < toMs) {
-    points.push({ t: toMs, pool: poolAt(accounts, toMs) });
-  }
-  return points;
+  const firstReading = firstReadingMs(accounts);
+  if (firstReading === null || toMs < fromMs) return [];
+  return stepTimes(Math.max(fromMs, firstReading), toMs, stepMs).map((t) => {
+    const parts = accounts.map((account) => remainingAt(account, t) ?? 0);
+    return { t, pool: sum(parts), parts };
+  });
 }
 
-const poolAt = (accounts: PoolAccount[], t: number) =>
-  accounts.reduce((sum, account) => sum + (remainingAt(account, t) ?? 0), 0);
+/** When the oldest reading of any account was taken, or null with none. */
+export function firstReadingMs(accounts: PoolAccount[]): number | null {
+  let first = Infinity;
+  for (const account of accounts) {
+    if (account.readings.length) first = Math.min(first, account.readings[0].atMs);
+  }
+  return Number.isFinite(first) ? first : null;
+}
+
+/** `fromMs`, then every `stepMs`, always ending exactly on `toMs`. */
+const stepTimes = (fromMs: number, toMs: number, stepMs: number) => {
+  const times: number[] = [];
+  if (toMs < fromMs) return times;
+  for (let t = fromMs; t <= toMs; t += stepMs) times.push(t);
+  if (times[times.length - 1] < toMs) times.push(toMs);
+  return times;
+};
+
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
 /**
- * Percentage points used per hour across the pool over the last `windowHours`.
- * Only drops between two readings of the same window cycle count, so a reset
- * never reads as negative usage. Null when there is under 15 minutes of history.
+ * Percentage points used per hour across the pool over the last `windowHours`,
+ * or null when there is under 15 minutes of history.
  */
 export function burnRate(
   accounts: PoolAccount[],
   nowMs: number,
   windowHours: number
 ): number | null {
-  const fromMs = nowMs - windowHours * HOUR_MS;
-  let used = 0;
-  let earliest = Infinity;
-  for (const account of accounts) {
-    let previous: PoolReading | null = null;
-    for (const reading of account.readings) {
-      if (reading.atMs > nowMs) break;
-      if (reading.atMs >= fromMs) {
-        earliest = Math.min(earliest, previous && previous.atMs < fromMs ? fromMs : reading.atMs);
-        if (previous && sameCycle(previous, reading)) {
-          used += Math.max(0, previous.remaining - reading.remaining);
-        }
-      }
-      previous = reading;
+  return drainSeries(accounts, nowMs, nowMs, HOUR_MS, windowHours)[0]?.rate ?? null;
+}
+
+/**
+ * The drain rate from `fromMs` to `toMs`: at each step, the usage in the
+ * `windowHours` before it, per hour. Only drops between two readings of the
+ * same window cycle count, so a reset never reads as negative usage. The
+ * server records only readings that changed, so a quiet stretch with no
+ * readings counts as no usage. Null until 15 minutes of history exist.
+ */
+export function drainSeries(
+  accounts: PoolAccount[],
+  fromMs: number,
+  toMs: number,
+  stepMs: number,
+  windowHours: number
+): RatePoint[] {
+  const firstReading = firstReadingMs(accounts);
+  if (firstReading === null) return [];
+  const windowMs = windowHours * HOUR_MS;
+  const events = accounts.map(usageEvents);
+  // A sliding window per account: events in (t - window, t] are summed.
+  const lo = events.map(() => 0);
+  const hi = events.map(() => 0);
+  const used = events.map(() => 0);
+  return stepTimes(fromMs, toMs, stepMs).map((t) => {
+    events.forEach((list, i) => {
+      while (hi[i] < list.length && list[hi[i]].t <= t) used[i] += list[hi[i]++].amount;
+      while (lo[i] < hi[i] && list[lo[i]].t <= t - windowMs) used[i] -= list[lo[i]++].amount;
+    });
+    const coveredMs = t - Math.max(t - windowMs, firstReading);
+    if (coveredMs < MIN_HISTORY_MS) return { t, rate: null, parts: accounts.map(() => 0) };
+    const hours = coveredMs / HOUR_MS;
+    // Clear float dust left by adding and removing the same amounts.
+    const parts = used.map((value) => (value > 1e-9 ? value / hours : 0));
+    return { t, rate: sum(parts), parts };
+  });
+}
+
+/** One account's usage: each drop between two readings of the same cycle. */
+function usageEvents(account: PoolAccount): { t: number; amount: number }[] {
+  const events: { t: number; amount: number }[] = [];
+  const { readings } = account;
+  for (let i = 1; i < readings.length; i++) {
+    const previous = readings[i - 1];
+    const reading = readings[i];
+    if (sameCycle(previous, reading) && previous.remaining > reading.remaining) {
+      events.push({ t: reading.atMs, amount: previous.remaining - reading.remaining });
     }
   }
-  const coveredMs = nowMs - Math.max(fromMs, earliest);
-  if (!Number.isFinite(coveredMs) || coveredMs < 15 * MINUTE_MS) return null;
-  return used / (coveredMs / HOUR_MS);
+  return events;
 }
 
 const sameCycle = (a: PoolReading, b: PoolReading) =>
@@ -227,49 +294,58 @@ export function projectPool(
   burnPerHour: number,
   stepMs: number
 ): PoolProjection {
-  const state = accounts
-    .map((account) => {
-      const last = account.readings[account.readings.length - 1];
-      const remaining = remainingAt(account, nowMs);
-      if (!last || remaining === null) return null;
-      let nextResetMs = last.resetAtMs;
-      while (nextResetMs !== null && nextResetMs <= nowMs) nextResetMs += last.periodMs;
-      return {
-        key: account.key,
-        label: account.label,
-        remaining,
-        remainingNow: remaining,
-        firstResetMs: nextResetMs,
-        nextResetMs,
-        periodMs: last.periodMs,
-        emptyAtMs: remaining <= 0 ? nowMs : (null as number | null),
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
+  // An account with no reading stays in place (so `parts` line up with the
+  // accounts passed in) but holds nothing and is left out of the results.
+  const state = accounts.map((account, index) => {
+    const last = account.readings[account.readings.length - 1];
+    const remaining = remainingAt(account, nowMs);
+    const known = Boolean(last) && remaining !== null;
+    let nextResetMs = known ? last.resetAtMs : null;
+    while (nextResetMs !== null && nextResetMs <= nowMs) nextResetMs += last.periodMs;
+    return {
+      index,
+      known,
+      key: account.key,
+      label: account.label,
+      remaining: remaining ?? 0,
+      remainingNow: remaining ?? 0,
+      firstResetMs: nextResetMs,
+      nextResetMs,
+      periodMs: known ? last.periodMs : WEEK_MS,
+      emptyAtMs: known && (remaining ?? 0) <= 0 ? nowMs : (null as number | null),
+    };
+  });
 
   const points: PoolPoint[] = [];
+  const drain: RatePoint[] = [];
   const resets: PoolReset[] = [];
   let emptyAtMs: number | null = null;
-  const total = () => state.reduce((sum, item) => sum + item.remaining, 0);
-  points.push({ t: nowMs, pool: total() });
+  const snapshot = (t: number): PoolPoint => {
+    const parts = state.map((item) => item.remaining);
+    return { t, pool: sum(parts), parts };
+  };
+  const total = () => state.reduce((value, item) => value + item.remaining, 0);
+  points.push(snapshot(nowMs));
   if (total() <= 0) emptyAtMs = nowMs;
+  const stepHours = stepMs / HOUR_MS;
 
   for (let t = nowMs + stepMs; t <= untilMs; t += stepMs) {
     const stepStart = t - stepMs;
     // Resets inside this step happen first, at their own instant.
     for (const item of state) {
       while (item.nextResetMs !== null && item.nextResetMs <= t) {
-        const before = total();
+        const before = snapshot(item.nextResetMs);
         const gain = 100 - item.remaining;
         item.remaining = 100;
         if (gain > 0.05) {
-          points.push({ t: item.nextResetMs, pool: before });
-          points.push({ t: item.nextResetMs, pool: before + gain });
+          points.push(before);
+          points.push(snapshot(item.nextResetMs));
           resets.push({ t: item.nextResetMs, key: item.key, gain });
         }
         item.nextResetMs += item.periodMs;
       }
     }
+    const takenBy = state.map(() => 0);
     let toBurn = (burnPerHour * stepMs) / HOUR_MS;
     // Spread the step's usage over the accounts with quota left; what an
     // account cannot absorb moves to the others (the proxy rotates past it).
@@ -281,6 +357,7 @@ export function projectPool(
       for (const item of active) {
         const taken = Math.min(item.remaining, share);
         item.remaining -= taken;
+        takenBy[item.index] += taken;
         toBurn += share - taken;
         if (item.remaining <= 1e-9) {
           item.remaining = 0;
@@ -288,29 +365,36 @@ export function projectPool(
         }
       }
     }
-    const pool = total();
-    points.push({ t, pool });
-    if (emptyAtMs === null && pool <= 1e-9) emptyAtMs = t;
+    const point = snapshot(t);
+    points.push(point);
+    const parts = takenBy.map((taken) => taken / stepHours);
+    // The step's rate also stands for its start, so the line begins at now.
+    if (drain.length === 0) drain.push({ t: nowMs, rate: sum(parts), parts });
+    drain.push({ t, rate: sum(parts), parts });
+    if (emptyAtMs === null && point.pool <= 1e-9) emptyAtMs = t;
   }
 
-  const empties = state.filter((item) => item.emptyAtMs !== null);
+  const empties = state.filter((item) => item.known && item.emptyAtMs !== null);
   empties.sort((a, b) => (a.emptyAtMs ?? 0) - (b.emptyAtMs ?? 0));
   const first = empties[0];
   points.sort((a, b) => a.t - b.t);
   return {
     points,
+    drain,
     resets,
     emptyAtMs,
     firstEmpty: first
       ? { key: first.key, label: first.label, atMs: first.emptyAtMs ?? nowMs }
       : null,
-    accounts: state.map((item) => ({
-      key: item.key,
-      label: item.label,
-      remainingNow: item.remainingNow,
-      nextResetMs: item.firstResetMs,
-      emptyAtMs: item.emptyAtMs,
-    })),
+    accounts: state
+      .filter((item) => item.known)
+      .map((item) => ({
+        key: item.key,
+        label: item.label,
+        remainingNow: item.remainingNow,
+        nextResetMs: item.firstResetMs,
+        emptyAtMs: item.emptyAtMs,
+      })),
   };
 }
 

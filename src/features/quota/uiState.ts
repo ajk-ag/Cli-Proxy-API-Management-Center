@@ -1,8 +1,12 @@
 import {
   QUOTA_LAYOUTS,
+  QUOTA_POOL_BURN_HOURS,
+  QUOTA_POOL_MODES,
   QUOTA_SORT_MODES,
   QUOTA_TAB_ORDER,
   type QuotaLayout,
+  type QuotaPoolBurnHours,
+  type QuotaPoolMode,
   type QuotaSortMode,
   type QuotaTabId,
 } from './constants';
@@ -81,6 +85,44 @@ export const writeQuotaLayout = (layout: QuotaLayout) => {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(QUOTA_LAYOUT_KEY, layout);
+  } catch {
+    // ignore
+  }
+};
+
+/** The pool view's chart choices, a lasting preference like the layout. */
+export type QuotaPoolPrefs = {
+  mode?: QuotaPoolMode;
+  accounts?: boolean;
+  burnHours?: QuotaPoolBurnHours;
+};
+
+const QUOTA_POOL_PREFS_KEY = 'quotaPage.pool';
+
+export const readQuotaPoolPrefs = (): QuotaPoolPrefs => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw: unknown = JSON.parse(window.localStorage.getItem(QUOTA_POOL_PREFS_KEY) ?? '{}');
+    if (!raw || typeof raw !== 'object') return {};
+    const { mode, accounts, burnHours } = raw as Record<string, unknown>;
+    return {
+      mode: (QUOTA_POOL_MODES as readonly unknown[]).includes(mode)
+        ? (mode as QuotaPoolMode)
+        : undefined,
+      accounts: typeof accounts === 'boolean' ? accounts : undefined,
+      burnHours: (QUOTA_POOL_BURN_HOURS as readonly unknown[]).includes(burnHours)
+        ? (burnHours as QuotaPoolBurnHours)
+        : undefined,
+    };
+  } catch {
+    return {};
+  }
+};
+
+export const writeQuotaPoolPrefs = (prefs: QuotaPoolPrefs) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(QUOTA_POOL_PREFS_KEY, JSON.stringify(prefs));
   } catch {
     // ignore
   }

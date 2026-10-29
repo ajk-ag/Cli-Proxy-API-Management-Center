@@ -477,6 +477,7 @@ export function QuotaPage() {
         ) : layout === 'pool' ? (
           <QuotaPool
             entries={filteredEntries}
+            allEntries={entries}
             quotaFor={getQuota}
             resolvedTheme={resolvedTheme}
             refreshKey={poolRefreshKey}

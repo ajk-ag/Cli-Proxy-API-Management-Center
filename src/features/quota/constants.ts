@@ -30,5 +30,11 @@ export const QUOTA_LAYOUTS = ['cards', 'list', 'pool'] as const;
 
 export type QuotaLayout = (typeof QUOTA_LAYOUTS)[number];
 
+/** Pool view: what the chart shows, and the burn windows it can average over. */
+export const QUOTA_POOL_MODES = ['remaining', 'drain'] as const;
+export type QuotaPoolMode = (typeof QUOTA_POOL_MODES)[number];
+export const QUOTA_POOL_BURN_HOURS = [1, 3, 6] as const;
+export type QuotaPoolBurnHours = (typeof QUOTA_POOL_BURN_HOURS)[number];
+
 /** 与 useRevealGroup 的 GROUP_MAX_TOTAL 一致：卡片级联总预算 360ms。 */
 export const CARD_ENTRANCE_BUDGET_MS = 360;

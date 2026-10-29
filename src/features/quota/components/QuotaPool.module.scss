@@ -4,6 +4,8 @@
  * Quota pool view: one card per provider with a hero total, four stats and a
  * recorded + projected line. Marks follow the dataviz specs: 2px lines, a ~10%
  * area wash, 1px solid recessive gridlines, an 8px end dot with a surface ring.
+ * With accounts shown, stacked bands replace the wash: a 2px surface gap
+ * between bands and a surface halo under the pool line keep each mark apart.
  * ============================================================ */
 
 .view {
@@ -21,6 +23,14 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 16px;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  min-width: 0;
 }
 
 .control {
@@ -68,6 +78,33 @@
       border-color: var(--border-hover);
       color: var(--text-primary);
     }
+  }
+}
+
+/* A single on/off pill, sized like one segmented button with its track. */
+.toggle {
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  &[aria-pressed='true'] {
+    background: var(--floating-surface, var(--bg-primary));
+    border-color: var(--border-hover);
+    color: var(--text-primary);
   }
 }
 
@@ -285,6 +322,43 @@
   fill-opacity: 0.05;
 }
 
+.bandRecorded,
+.bandProjected {
+  fill: var(--band-color);
+  stroke: var(--bg-primary);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.bandRecorded {
+  fill-opacity: 0.85;
+}
+
+.bandProjected {
+  fill-opacity: 0.38;
+}
+
+/* A 1px surface ring: enough to part the line from a band, thin enough to keep narrow peaks filled. */
+.lineHalo {
+  fill: none;
+  stroke: var(--bg-primary);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* Band names sit on the band in text ink, ringed with the surface to stay legible. */
+.bandText {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  stroke: var(--bg-primary);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+}
+
 .lineRecorded,
 .lineProjected {
   fill: none;
@@ -337,7 +411,6 @@
 .tooltip {
   position: absolute;
   top: 0;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -354,10 +427,47 @@
     color: var(--text-primary);
   }
 
-  span {
+  > span {
     font-size: 11.5px;
     color: var(--text-tertiary);
   }
+}
+
+.tooltipBands {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 6px;
+  margin: 4px 0 0;
+  padding: 4px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--border-color);
+  font-size: 11.5px;
+
+  li {
+    display: contents;
+  }
+}
+
+.tooltipLabel {
+  max-width: 14rem;
+  color: var(--text-secondary);
+  @include text-ellipsis;
+}
+
+.tooltipValue {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
 }
 
 /* ---------- legend, note and table ---------- */
@@ -376,6 +486,31 @@
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
+}
+
+.legendTitle {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.legendBands {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-width: 0;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.legendLabel {
+  max-width: 16rem;
+  @include text-ellipsis;
 }
 
 .keyRecorded,
@@ -437,6 +572,11 @@
     font-size: 12px;
     color: var(--text-primary);
     @include text-ellipsis;
+
+    .swatch {
+      margin-right: 7px;
+      vertical-align: -1px;
+    }
   }
 
   td {
