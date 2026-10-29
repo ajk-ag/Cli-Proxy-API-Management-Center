@@ -1,0 +1,468 @@
+@use '../../../styles/mixins' as *;
+
+/* ============================================================
+ * Quota pool view: one card per provider with a hero total, four stats and a
+ * recorded + projected line. Marks follow the dataviz specs: 2px lines, a ~10%
+ * area wash, 1px solid recessive gridlines, an 8px end dot with a surface ring.
+ * ============================================================ */
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ---------- controls (one row, above every chart) ---------- */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controlLabel,
+.rangeLabel {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+
+  button {
+    padding: 4px 12px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+
+    &[aria-pressed='true'] {
+      background: var(--floating-surface, var(--bg-primary));
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+  }
+}
+
+.rangeNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rangeLabel {
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.navButton {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.notice {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.footnote {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- provider card ---------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-primary);
+  min-width: 0;
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'identity identity'
+    'hero stats';
+  align-items: end;
+  gap: 6px 24px;
+}
+
+.identity {
+  grid-area: identity;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+
+  img {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    display: block;
+  }
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.count {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.hero {
+  grid-area: hero;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The one hero figure per card: same sans as the page, proportional digits. */
+.heroValue {
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.heroOf {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.stats {
+  grid-area: stats;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 28px;
+  margin: 0;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  dt {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+}
+
+.statName {
+  display: inline-block;
+  max-width: 12rem;
+  vertical-align: bottom;
+  @include text-ellipsis;
+}
+
+/* ---------- chart ---------- */
+
+.chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+
+  svg {
+    display: block;
+    overflow: visible;
+  }
+}
+
+.grid {
+  stroke: var(--border-color);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.axisText {
+  font-size: 11px;
+  fill: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.jumpText {
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.areaRecorded {
+  fill: var(--pool-color);
+  fill-opacity: 0.12;
+}
+
+.areaProjected {
+  fill: var(--pool-color);
+  fill-opacity: 0.05;
+}
+
+.lineRecorded,
+.lineProjected {
+  fill: none;
+  stroke: var(--pool-color);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lineProjected {
+  stroke-dasharray: 5 4;
+}
+
+.nowLine {
+  stroke: var(--text-quaternary);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.dot {
+  fill: var(--pool-color);
+  stroke: var(--bg-primary);
+  stroke-width: 2;
+}
+
+.emptyDot {
+  fill: var(--bg-primary);
+  stroke: var(--text-primary);
+  stroke-width: 2;
+}
+
+.emptyText {
+  font-size: 11.5px;
+  font-weight: 600;
+  fill: var(--text-primary);
+}
+
+.crosshair {
+  stroke: var(--text-tertiary);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+  pointer-events: none;
+}
+
+.hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.tooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--floating-surface, var(--bg-primary));
+  box-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+
+  strong {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+  }
+}
+
+/* ---------- legend, note and table ---------- */
+
+.foot {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.keyRecorded,
+.keyProjected {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 2px solid var(--pool-color);
+}
+
+.keyProjected {
+  margin-left: 10px;
+  border-top-style: dashed;
+}
+
+.note {
+  min-width: 0;
+}
+
+.table {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+
+  summary {
+    cursor: pointer;
+    width: fit-content;
+    color: var(--text-secondary);
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+  }
+
+  table {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 6px 8px;
+    text-align: left;
+    border-top: 1px solid var(--border-color);
+    font-weight: 400;
+  }
+
+  thead th {
+    border-top: 0;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  tbody th {
+    max-width: 18rem;
+    font-family: $font-mono;
+    font-size: 12px;
+    color: var(--text-primary);
+    @include text-ellipsis;
+  }
+
+  td {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+@include mobile {
+  .card {
+    padding: 14px 12px 12px;
+  }
+
+  .head {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'identity'
+      'hero'
+      'stats';
+  }
+
+  .stats {
+    justify-content: flex-start;
+  }
+
+  .heroValue {
+    font-size: 40px;
+  }
+}

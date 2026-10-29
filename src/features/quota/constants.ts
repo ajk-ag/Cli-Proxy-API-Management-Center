@@ -22,8 +22,11 @@ export const QUOTA_SORT_MODES = ['default', 'soonest'] as const;
 
 export type QuotaSortMode = (typeof QUOTA_SORT_MODES)[number];
 
-/** Page layout: the card grid, or one row per credential grouped by provider. */
-export const QUOTA_LAYOUTS = ['cards', 'list'] as const;
+/**
+ * Page layout: the card grid, one row per credential grouped by provider, or the
+ * pool chart (every account of a provider added together over time).
+ */
+export const QUOTA_LAYOUTS = ['cards', 'list', 'pool'] as const;
 
 export type QuotaLayout = (typeof QUOTA_LAYOUTS)[number];
 

@@ -32,6 +32,7 @@ import {
 import { QuotaHeader } from './components/QuotaHeader';
 import { QuotaCard } from './components/QuotaCard';
 import { QuotaTimeline } from './components/QuotaTimeline';
+import { QuotaPool } from './components/QuotaPool';
 import {
   CARD_ENTRANCE_BUDGET_MS,
   QUOTA_LAYOUTS,
@@ -59,12 +60,7 @@ import type { QuotaProviderType } from './providers/types';
 import { useDevinQuotaAutoLoad } from './providers/devin/useDevinQuotaAutoLoad';
 import { useQuotaActions } from './hooks/useQuotaActions';
 import { useQuotaBatchLoader } from './hooks/useQuotaBatchLoader';
-import {
-  readQuotaLayout,
-  readQuotaUiState,
-  writeQuotaLayout,
-  writeQuotaUiState,
-} from './uiState';
+import { readQuotaLayout, readQuotaUiState, writeQuotaLayout, writeQuotaUiState } from './uiState';
 import styles from './QuotaPage.module.scss';
 
 const TAB_IDS: string[] = ['all', ...QUOTA_TAB_ORDER];
@@ -90,6 +86,8 @@ export function QuotaPage() {
     () => readQuotaUiState()?.sortMode ?? 'default'
   );
   const [layout, setLayout] = useState<QuotaLayout>(() => readQuotaLayout() ?? 'cards');
+  // Bumped by "Refresh all" so the pool view reloads its recorded history too.
+  const [poolRefreshKey, setPoolRefreshKey] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -281,6 +279,7 @@ export function QuotaPage() {
   const handleRefreshAll = useCallback(() => {
     if (disableControls) return;
     pendingRefreshRef.current = sessionGeneration;
+    setPoolRefreshKey((value) => value + 1);
     void loadFiles();
   }, [disableControls, loadFiles, sessionGeneration]);
 
@@ -430,7 +429,11 @@ export function QuotaPage() {
         )}
 
         {loading ? (
-          layout === 'list' ? (
+          layout === 'pool' ? (
+            <div className={styles.listSkeleton} aria-hidden="true">
+              <Skeleton height={360} rounded={14} />
+            </div>
+          ) : layout === 'list' ? (
             <div className={styles.listSkeleton} aria-hidden="true">
               {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
                 <Skeleton key={index} height={64} rounded={10} />
@@ -471,17 +474,20 @@ export function QuotaPage() {
               )
             }
           />
+        ) : layout === 'pool' ? (
+          <QuotaPool
+            entries={filteredEntries}
+            quotaFor={getQuota}
+            resolvedTheme={resolvedTheme}
+            refreshKey={poolRefreshKey}
+          />
         ) : layout === 'list' ? (
           <div className={styles.list}>
             {groupQuotaEntries(pageItems).map((group) => {
               const iconSrc = getAuthFileIcon(group.type, resolvedTheme);
               const headingId = `quota-list-${group.type}`;
               return (
-                <section
-                  key={group.type}
-                  className={styles.listGroup}
-                  aria-labelledby={headingId}
-                >
+                <section key={group.type} className={styles.listGroup} aria-labelledby={headingId}>
                   <h2 id={headingId} className={styles.listGroupTitle}>
                     {iconSrc && (
                       <span
@@ -533,7 +539,7 @@ export function QuotaPage() {
           </div>
         )}
 
-        {!loading && filteredEntries.length > QUOTA_PAGE_SIZE && (
+        {!loading && layout !== 'pool' && filteredEntries.length > QUOTA_PAGE_SIZE && (
           <div className={styles.pagination}>
             <Button
               variant="secondary"
@@ -561,13 +567,16 @@ export function QuotaPage() {
           </div>
         )}
 
-        {/* 时间线只比较当前页凭证，避免大量凭证一次性生成无界泳道。 */}
-        <QuotaTimeline
-          entries={pageItems}
-          quotaFor={getQuota}
-          displayNameFor={displayNameFor}
-          resolvedTheme={resolvedTheme}
-        />
+        {/* The timeline compares only this page's credentials, so a long list never
+            builds unbounded lanes. The pool view draws resets itself. */}
+        {layout !== 'pool' && (
+          <QuotaTimeline
+            entries={pageItems}
+            quotaFor={getQuota}
+            displayNameFor={displayNameFor}
+            resolvedTheme={resolvedTheme}
+          />
+        )}
       </section>
     </div>
   );
